@@ -1,0 +1,10 @@
+*.pdf
+
+# JetBrains
+
+.idea
+
+# Python
+
+.venv
+__pycache__
