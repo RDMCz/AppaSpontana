@@ -1,0 +1,5 @@
+20261104::apspPdfOkometr::add button to reveal directory in explorer
+20261104::apspPdfOkometr::enable multipage pdf support
+20261104::apspPdfOkometr::properly clear the file table on directory change and sort by file name
+20261104::apspPdfOkometr::add file info groupbox to the side panel
+20261104::apspPdfOkometr::change extension from py to pyw to hide the console window

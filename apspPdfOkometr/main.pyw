@@ -1,11 +1,14 @@
 import os
 import pathlib
+from datetime import datetime
 
 import PySide6.QtCore as QtC
 import PySide6.QtGui as QtG
 import PySide6.QtPdf as QtP
 import PySide6.QtPdfWidgets as QtPW
 import PySide6.QtWidgets as QtW
+
+import widget as w
 
 _PATH = pathlib.Path(__file__).parent
 _LAST_PATH_FILE = "last_path.txt"
@@ -21,16 +24,23 @@ class MainWindow(QtW.QMainWindow):
 
         main_layout = QtW.QHBoxLayout()
 
-        # Side container for the 'open directory' button and the file table
+        # Side container for the 'change/reveal directory' buttons, the file table, and the file info
         side_container = QtW.QWidget()  # Side layout must be wrapped in a widget to add it to the main layout
         side_layout = QtW.QVBoxLayout()
         side_layout.setContentsMargins(0, 0, 0, 0)
-        side_container.setLayout(side_layout)
-        side_container.setFixedWidth(256)
 
-        button_change_dir = QtW.QPushButton("Open directory...")
+        button_layout_container = QtW.QWidget()
+        button_layout = QtW.QHBoxLayout()
+        button_layout.setContentsMargins(0, 0, 0, 0)
+        button_change_dir = QtW.QPushButton("Change directory...")
         button_change_dir.clicked.connect(self.button_change_dir_clicked)
-        side_layout.addWidget(button_change_dir)
+        button_layout.addWidget(button_change_dir)
+        button_reveal_dir = QtW.QPushButton("Reveal")
+        button_reveal_dir.clicked.connect(self.button_reveal_dir_clicked)
+        button_reveal_dir.setFixedWidth(64)
+        button_layout.addWidget(button_reveal_dir)
+        button_layout_container.setLayout(button_layout)
+        side_layout.addWidget(button_layout_container)
 
         self.table_files = QtW.QTableWidget()
         self.table_files.setEditTriggers(QtW.QAbstractItemView.EditTrigger.NoEditTriggers)  # Read-only cells
@@ -38,11 +48,28 @@ class MainWindow(QtW.QMainWindow):
         self.table_files.setFocusPolicy(QtC.Qt.FocusPolicy.NoFocus)  # No tab/arrow keys to change the selection
         side_layout.addWidget(self.table_files)
 
+        group_file_info = QtW.QGroupBox("File info")
+        group_file_info_layout = QtW.QVBoxLayout()
+
+        group_file_info_layout.addWidget(QtW.QLabel("Name:"))
+        self.group_file_info_name = w.OutputField("...")
+        group_file_info_layout.addWidget(self.group_file_info_name)
+
+        group_file_info_layout.addWidget(QtW.QLabel("Last edit:"))
+        self.group_file_info_lastedit = w.OutputField("...")
+        group_file_info_layout.addWidget(self.group_file_info_lastedit)
+
+        group_file_info.setLayout(group_file_info_layout)
+        side_layout.addWidget(group_file_info)
+
+        side_container.setLayout(side_layout)
+        side_container.setFixedWidth(256)
         main_layout.addWidget(side_container)
 
         # Main star of the show: Pdf viewer
         self.pdf_document = QtP.QPdfDocument()
         pdf_view = QtPW.QPdfView(self)
+        pdf_view.setPageMode(QtPW.QPdfView.PageMode.MultiPage)
         pdf_view.setDocument(self.pdf_document)
 
         main_layout.addWidget(pdf_view)
@@ -61,6 +88,7 @@ class MainWindow(QtW.QMainWindow):
         ])
         file_switch_shortcut.activated.connect(self.file_switch)
 
+        self.setMinimumSize(640, 480)
         self.showMaximized()
 
         # Load directory from previous session, if any
@@ -73,6 +101,7 @@ class MainWindow(QtW.QMainWindow):
                     self.table_refresh()
 
     def file_switch(self):
+        """Show the other PDF file from the pair."""
         if self.file_name[0] == "A":
             self.file_name = "B" + self.file_name[1:]
         elif self.file_name[0] == "B":
@@ -80,9 +109,15 @@ class MainWindow(QtW.QMainWindow):
         self.file_show()
 
     def file_show(self):
-        """Show PDF file in the viewer according to `self.directory_path` and `self.file_name`."""
-        file_path = os.path.join(self.directory_path, self.file_name)
-        self.pdf_document.load(file_path)
+        """Show PDF file in the viewer according to `self.directory_path` and `self.file_name`.
+        Update file info."""
+        file_path = pathlib.Path(self.directory_path) / self.file_name
+        self.pdf_document.load(str(file_path))
+        self.group_file_info_name.setText(self.file_name)
+        self.group_file_info_lastedit.setText(
+            datetime.fromtimestamp(os.path.getmtime(file_path)).strftime("%Y-%m-%d %H:%M:%S")
+            if file_path.exists() else "File does not exist"
+        )
 
     def button_change_dir_clicked(self):
         """Show dialog for user to choose a folder, refresh table
@@ -97,6 +132,10 @@ class MainWindow(QtW.QMainWindow):
         self.table_refresh()
         with open(_PATH / _LAST_PATH_FILE, "w", encoding="utf-8") as f_out:
             f_out.write(self.directory_path)
+
+    def button_reveal_dir_clicked(self):
+        """Reveal `self.directory_path` in explorer."""
+        QtG.QDesktopServices.openUrl(QtC.QUrl.fromLocalFile(self.directory_path))
 
     def table_files_cell_clicked(self, row, column):
         """User clicks on a file in the table, show it in the PDF viewer."""
@@ -124,23 +163,23 @@ class MainWindow(QtW.QMainWindow):
         file_names_only_b = file_names_b.difference(file_names_both)
         n_rows = len(file_names_both) + len(file_names_only_a) + len(file_names_only_b)
 
-        self.table_files.reset()
+        self.table_files.setRowCount(0)  # Reset
         horizontal_header_labels = ["A", "B"]
         self.table_files.setColumnCount(len(horizontal_header_labels))
         self.table_files.setHorizontalHeaderLabels(horizontal_header_labels)
         self.table_files.setRowCount(n_rows)
 
         row_n = 0
-        for file_name in file_names_both:
+        for file_name in sorted(file_names_both):
             self.table_files.setItem(row_n, 0, QtW.QTableWidgetItem(str(file_name)))
             self.table_files.setItem(row_n, 1, QtW.QTableWidgetItem(str(file_name)))
             row_n += 1
 
-        for file_name in file_names_only_a:
+        for file_name in sorted(file_names_only_a):
             self.table_files.setItem(row_n, 0, QtW.QTableWidgetItem(str(file_name)))
             row_n += 1
 
-        for file_name in file_names_only_b:
+        for file_name in sorted(file_names_only_b):
             self.table_files.setItem(row_n, 1, QtW.QTableWidgetItem(str(file_name)))
             row_n += 1
 
