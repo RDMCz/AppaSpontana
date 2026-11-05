@@ -24,7 +24,7 @@ class MainWindow(QtW.QMainWindow):
 
         main_layout = QtW.QHBoxLayout()
 
-        # Side container for the 'change/reveal directory' buttons, the file table, and the file info
+        # Side container for the 'change/reveal/refresh directory' buttons, the file table, and the file info
         side_container = QtW.QWidget()  # Side layout must be wrapped in a widget to add it to the main layout
         side_layout = QtW.QVBoxLayout()
         side_layout.setContentsMargins(0, 0, 0, 0)
@@ -35,10 +35,16 @@ class MainWindow(QtW.QMainWindow):
         button_change_dir = QtW.QPushButton("Change directory...")
         button_change_dir.clicked.connect(self.button_change_dir_clicked)
         button_layout.addWidget(button_change_dir)
-        button_reveal_dir = QtW.QPushButton("Reveal")
+        button_reveal_dir = QtW.QPushButton()
         button_reveal_dir.clicked.connect(self.button_reveal_dir_clicked)
-        button_reveal_dir.setFixedWidth(64)
+        button_reveal_dir.setIcon(self.style().standardIcon(QtW.QStyle.SP_DirLinkIcon))
+        button_reveal_dir.setFixedWidth(32)
         button_layout.addWidget(button_reveal_dir)
+        button_refresh = QtW.QPushButton()
+        button_refresh.clicked.connect(self.table_refresh)
+        button_refresh.setIcon(self.style().standardIcon(QtW.QStyle.SP_BrowserReload))
+        button_refresh.setFixedWidth(32)
+        button_layout.addWidget(button_refresh)
         button_layout_container.setLayout(button_layout)
         side_layout.addWidget(button_layout_container)
 
@@ -123,7 +129,7 @@ class MainWindow(QtW.QMainWindow):
         """Show dialog for user to choose a folder, refresh table
         with files from chosen folder, save path for next session."""
         dialog = QtW.QFileDialog(self)
-        possible_directory_path = dialog.getExistingDirectory()
+        possible_directory_path = dialog.getExistingDirectory(dir=self.directory_path)
 
         if not os.path.exists(possible_directory_path):
             return

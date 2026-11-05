@@ -1,3 +1,5 @@
+20261105::apspPdfOkometr::add button to refresh the table, useful if selected directory content changes
+20261105::apspPdfOkometr::change directory dialog starts in the currently selected directory
 20261104::apspPdfOkometr::add button to reveal directory in explorer
 20261104::apspPdfOkometr::enable multipage pdf support
 20261104::apspPdfOkometr::properly clear the file table on directory change and sort by file name
