@@ -1,4 +1,4 @@
-20261109::apspExcelComparator::WIP
+20261110::apspExcelComparator::init
 20261109::apspPdfOkometr::update button icons and tooltips
 20261105::apspPdfOkometr::add button to refresh the table, useful if selected directory content changes
 20261105::apspPdfOkometr::change directory dialog starts in the currently selected directory

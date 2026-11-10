@@ -4,12 +4,14 @@ import pathlib
 import PySide6.QtCore as QtC
 import PySide6.QtGui as QtG
 import PySide6.QtWidgets as QtW
+import openpyxl
 
 _PATH = pathlib.Path(__file__).parent
 _LAST_PATH_FILE = "last_path.txt"
 
 _CHECKED = QtC.Qt.Checked
 _UNCHECKED = QtC.Qt.Unchecked
+
 
 class MainWindow(QtW.QMainWindow):
     def __init__(self):
@@ -31,7 +33,7 @@ class MainWindow(QtW.QMainWindow):
         side_layout.addWidget(button_change_dir)
 
         self.file_list = QtW.QListWidget()
-        #self.file_list.itemClicked.connect(self.file_clicked)
+        # self.file_list.itemClicked.connect(self.file_clicked)
         self.file_list.itemDoubleClicked.connect(self.file_clicked)
         side_layout.addWidget(self.file_list)
 
@@ -58,7 +60,45 @@ class MainWindow(QtW.QMainWindow):
                     self.file_list_refresh()
 
     def refresh_memo(self):
-        self.memo.setText(str(self.files_checked_dict))
+        files_to_compare = [k for k, v in self.files_checked_dict.items() if v]
+
+        if len(files_to_compare) < 2:
+            self.memo.setText("Select at least 2 files to compare")
+            return
+
+        path = pathlib.Path(self.directory_path)
+        sheets = [openpyxl.load_workbook(path / x).active for x in files_to_compare]
+        sheets = [x for x in sheets if x is not None]
+
+        max_row = max([x.max_row for x in sheets])
+        max_col = max([x.max_column for x in sheets])
+
+        result_text = ""
+
+        for row_n in range(1, max_row - 1):
+            sheet_rows = []
+            for sheet in sheets:
+                sheet_row = []
+                for col_n in range(1, max_col - 1):
+                    sheet_row.append(sheet.cell(row=row_n, column=col_n).value)
+                sheet_rows.append(sheet_row)
+
+            all_same = True
+            for col_idx in range(max_col):
+                col_set = set()
+                for sheet_row in sheet_rows:
+                    if col_idx < len(sheet_row):
+                        col_set.add(sheet_row[col_idx])
+                if len(col_set) > 1:
+                    all_same = False
+                    break
+
+            if not all_same:
+                result_text += f"\n\nRow {row_n}:"
+                for sheet_row in sheet_rows:
+                    result_text += f"\n{sheet_row}"
+
+        self.memo.setText(result_text)
 
     def file_clicked(self, item: QtW.QListWidgetItem):
         was_checked = item.checkState() == _CHECKED
@@ -89,6 +129,7 @@ class MainWindow(QtW.QMainWindow):
 
     def button_reveal_dir_clicked(self):
         QtG.QDesktopServices.openUrl(QtC.QUrl.fromLocalFile(self.directory_path))
+
 
 if __name__ == "__main__":
     app = QtW.QApplication([])
